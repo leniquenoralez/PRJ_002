@@ -17,7 +17,11 @@ static enum SORT_MODES {
     FILE_SIZE,
     REVERSE_SORT
 } SORT_MODE;
-
+static enum FORMAT_MODES {
+    DEFAULT = 0,
+    LONG,
+    NUMERIC
+} FORMAT_MODE;
 /*
     Display Flags
     −s Display the number of file system blocks actually used by each file, in units of 512 bytes or BLOCKSIZE (see ENVIRONMENT) where partial units are rounded up to the next integer value. If the output is to a terminal, a total sum for all the file sizes is output on a line before the listing.
@@ -61,7 +65,6 @@ order.
 
 int SHOW_DOT_DIRECTORY = 0;
 int IGNORE_DOT_DOTDOT = 0;
-int LONG_FORMAT = 1;
 char can_read(mode_t file_mode, char mode_type) {
     mode_t mode;
     if (mode_type == 'U')
@@ -258,7 +261,7 @@ int get_files_count(char *dirname)
 int process_files(int num_files, char **files){
     for (size_t i = 0; i < num_files; i++)
     {
-        if (LONG_FORMAT)
+        if (FORMAT_MODE == LONG)
         {
             print_long_format(files[i]);
         }
@@ -373,7 +376,7 @@ int lsFile(char *filename){
     printf("listing details for file: %s\n", filename);
     return 0;
 }
-void decodeFlags(int argc, char **argv)
+int decodeFlags(int argc, char **argv)
 {
     int c;
 
@@ -388,7 +391,10 @@ void decodeFlags(int argc, char **argv)
             SHOW_DOT_DIRECTORY = 1;
             break;
         case 'l':
-            LONG_FORMAT = 1;
+            FORMAT_MODE = LONG;
+            break;
+        case 'n':
+            FORMAT_MODE = NUMERIC;
             break;
         case 'c':
         case 'd':
@@ -397,7 +403,6 @@ void decodeFlags(int argc, char **argv)
         case 'h':
         case 'i':
         case 'k':
-        case 'n':
         case 'q':
         case 'R':
         case 'r':
@@ -411,19 +416,29 @@ void decodeFlags(int argc, char **argv)
             break;
         }
     }
+    return c;
 }
+
 int main(int argc, char **argv){
 
     SORT_MODE = LAST_MODIFIED;
     decodeFlags(argc, argv);
+    int mode = argc - optind;
 
-    // ls
-    if (argc == 1)
+    if (mode == 0)
     {
         queue_dir(".");
         return 1;
+    } 
+    if (mode == 1)
+    {
+        printf("ls [-la] filename");
+        return 1;
     }
-    
-    
+    if (mode >= 2)
+    {
+        printf("ls [-la] filename1 filename2 ...filename");
+        return 1;
+    }
     return -1;
 }
