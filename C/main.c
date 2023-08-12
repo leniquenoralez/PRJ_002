@@ -105,7 +105,8 @@ order.
 
 int SHOW_DOT_DIRECTORY = 0;
 int IGNORE_DOT_DOTDOT = 0;
-char can_read(mode_t file_mode, char mode_type) {
+char can_read(mode_t file_mode, char mode_type)
+{
     mode_t mode;
     if (mode_type == 'U')
     {
@@ -219,7 +220,7 @@ char get_file_type(char *filename)
     case S_IFSOCK:
         return 's';
     case S_IFWHT:
-        return 'w'; 
+        return 'w';
     default:
         return 'u';
     }
@@ -284,10 +285,11 @@ char *get_modified_date_time(struct tm *time_info)
 
     strftime(month_abbrev, sizeof(month_abbrev), "%b", time_info);
 
-    sprintf(formatted_time, "%s %2d %02d:%02d", month_abbrev, day,hour, minute);
+    sprintf(formatted_time, "%s %2d %02d:%02d", month_abbrev, day, hour, minute);
     return formatted_time;
 }
-int print_long_format(char *filename){
+int print_long_format(char *filename)
+{
     struct stat file_stat;
 
     char *filePath = get_full_file_path(filename);
@@ -346,7 +348,8 @@ int get_files_count(char *dirname)
     closedir(dir);
     return num_files;
 }
-int process_files(int num_files, char **files){
+int process_files(int num_files, char **files)
+{
     for (size_t i = 0; i < num_files; i++)
     {
         if (FORMAT_MODE == LONG)
@@ -402,7 +405,8 @@ int strings_compare(const void *a, const void *b)
 {
     return strcmp(*(const char **)a, *(const char **)b);
 }
-char ** allocate_memory(int count){
+char **allocate_memory(int count)
+{
     char **allocated_memory = (char **)malloc(count * sizeof(char *));
     for (int i = 0; i < count; i++)
     {
@@ -417,10 +421,11 @@ char ** allocate_memory(int count){
     return allocated_memory;
 }
 
-void free_memory(char **array, int size){
+void free_memory(char **array, int size)
+{
     for (int i = 0; i < size; i++)
     {
-        free(array[i]); 
+        free(array[i]);
     }
 
     free(array);
@@ -435,7 +440,6 @@ void sort_files(char **files, int num_files)
     {
         qsort(files, num_files, sizeof(files[0]), strings_compare);
     }
-    
 }
 void sort_dirs(char **files, int num_files)
 {
@@ -477,7 +481,7 @@ int ls_dir(char *filename)
             processed_file++;
         }
     }
-    
+
     (void)closedir(dir);
     sort_files(files, num_files);
     process_files(num_files, files);
@@ -485,7 +489,8 @@ int ls_dir(char *filename)
 
     return 0;
 }
-void ls_reg_file(char *filename){
+void ls_reg_file(char *filename)
+{
     switch (FORMAT_MODE)
     {
     case LONG:
@@ -496,14 +501,16 @@ void ls_reg_file(char *filename){
         break;
     }
 }
-void ls_reg_files(char **reg_files){
+void ls_reg_files(char **reg_files)
+{
     for (size_t i = 0; i < FILES_COUNT[REG_FILE_TYPE_COUNT]; i++)
     {
         ls_reg_file(reg_files[i]);
     }
     printf("\n\n");
 }
-int lsFile(char *filename){
+int lsFile(char *filename)
+{
     printf("listing details for file: %s\n", filename);
     return 0;
 }
@@ -544,7 +551,8 @@ void set_file_types_count(char **files, int files_count, char start_index)
         }
     }
 }
-void allocate_memory_for_file_types(){
+void allocate_memory_for_file_types()
+{
     if (FILES_COUNT[REG_FILE_TYPE_COUNT] > 0)
     {
         REG_FILES = allocate_memory(FILES_COUNT[REG_FILE_TYPE_COUNT]);
@@ -582,7 +590,8 @@ void allocate_memory_for_file_types(){
         UNKNOWN_FILES = allocate_memory(FILES_COUNT[UNKNOWN_FILES_TYPE_COUNT]);
     }
 }
-void set_files_by_type(char **files, int files_count, char start_index){
+void set_files_by_type(char **files, int files_count, char start_index)
+{
 
     int REG_FILE_COUNT = 0;
     int DIRECTORIES_COUNT = 0;
@@ -598,7 +607,6 @@ void set_files_by_type(char **files, int files_count, char start_index){
             DIRECTORIES[DIRECTORIES_COUNT++] = strdup(files[i]);
         }
     }
-
 };
 
 int decodeFlags(int argc, char **argv)
@@ -644,58 +652,46 @@ int decodeFlags(int argc, char **argv)
     return c;
 }
 
-int main(int argc, char **argv){
+int main(int argc, char **argv)
+{
 
     SORT_MODE = ALPHABETICALLY;
     decodeFlags(argc, argv);
     int mode = argc - optind;
 
-    if (mode == 0)
+    if (argc == optind)
     {
         ls_dir(".");
         return 1;
-    } 
-    if (mode == 1)
+    }
+    set_file_types_count(argv, mode, optind);
+    allocate_memory_for_file_types();
+    set_files_by_type(argv, mode, optind);
+
+    sort_files(REG_FILES, FILES_COUNT[REG_FILE_TYPE_COUNT]);
+    sort_dirs(DIRECTORIES, FILES_COUNT[DIR_FILE_TYPE_COUNT]);
+
+    ls_reg_files(REG_FILES);
+
+    for (size_t i = 0; i < FILES_COUNT[DIR_FILE_TYPE_COUNT]; i++)
     {
-        char *filename = argv[optind];
+        char *filename = DIRECTORIES[i];
         CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
         sprintf(CURRENT_DIRECTORY, "%s", filename);
-        ls_dir(filename);
-        free(CURRENT_DIRECTORY);
-        return 1;
-    }
-    if (mode >= 2)
-    {
-        set_file_types_count(argv, mode, optind);
-        allocate_memory_for_file_types();
-        set_files_by_type(argv, mode, optind);
-
-        sort_files(REG_FILES, FILES_COUNT[REG_FILE_TYPE_COUNT]);
-        sort_dirs(DIRECTORIES, FILES_COUNT[DIR_FILE_TYPE_COUNT]);
-
-        ls_reg_files(REG_FILES);
-
-        for (size_t i = 0; i < FILES_COUNT[DIR_FILE_TYPE_COUNT]; i++)
+        if (FILES_COUNT[DIR_FILE_TYPE_COUNT] > 1)
         {
-            char *filename = DIRECTORIES[i];
-            CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
-            sprintf(CURRENT_DIRECTORY, "%s", filename);
-            if (FILES_COUNT[DIR_FILE_TYPE_COUNT] > 1)
-            {
-                printf("%s: \n", filename);
-            }
-            ls_dir(filename);
-            if (i != argc - 1)
-            {
-                printf("\n\n");
-            }
-            free(CURRENT_DIRECTORY);
-            CURRENT_DIRECTORY = NULL;
+            printf("%s: \n", filename);
         }
-        free_memory(REG_FILES, FILES_COUNT[REG_FILE_TYPE_COUNT]);
-        free_memory(DIRECTORIES, FILES_COUNT[DIR_FILE_TYPE_COUNT]);
-
-        return 1;
+        ls_dir(filename);
+        if (i != argc - 1)
+        {
+            printf("\n\n");
+        }
+        free(CURRENT_DIRECTORY);
+        CURRENT_DIRECTORY = NULL;
     }
-    return -1;
+    free_memory(REG_FILES, FILES_COUNT[REG_FILE_TYPE_COUNT]);
+    free_memory(DIRECTORIES, FILES_COUNT[DIR_FILE_TYPE_COUNT]);
+
+    return 1;
 }
