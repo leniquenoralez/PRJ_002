@@ -469,7 +469,10 @@ int main(int argc, char **argv){
             sprintf(CURRENT_DIRECTORY, "%s", filename);
             printf("%s: \n", filename);
             queue_dir(filename);
-            printf("\n");
+            if (i != argc - 1)
+            {
+                printf("\n\n");
+            }
             free(CURRENT_DIRECTORY);
         }
 
