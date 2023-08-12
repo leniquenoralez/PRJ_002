@@ -57,6 +57,140 @@ order.
 
 int SHOW_DOT_DIRECTORY = 0;
 int IGNORE_DOT_DOTDOT = 0;
+int LONG_FORMAT = 1;
+/*
+        printf("Owner: %c%c%c\n",
+               (file_mode & S_IRUSR) ? 'r' : '-',
+               (file_mode & S_IWUSR) ? 'w' : '-',
+               (file_mode & S_IXUSR) ? 'x' : '-');
+        // Similar checks for group and others
+*/
+char can_read(mode_t file_mode, char mode_type) {
+    mode_t mode;
+    if (mode_type == 'U')
+    {
+        mode = S_IRUSR;
+    }
+    else if (mode_type == 'G')
+    {
+        mode = S_IRGRP;
+    }
+    else if (mode_type == 'O')
+    {
+        mode = S_IROTH;
+    }
+    else
+    {
+        perror("Unknown mode type!");
+        return 1;
+    }
+
+    return (file_mode & mode) ? 'r' : '-';
+}
+char can_write(mode_t file_mode, char mode_type)
+{
+    mode_t mode;
+    if (mode_type == 'U')
+    {
+        mode = S_IWUSR;
+    }
+    else if (mode_type == 'G')
+    {
+        mode = S_IWGRP;
+    }
+    else if (mode_type == 'O')
+    {
+        mode = S_IWOTH;
+    }
+    else
+    {
+        perror("Unknown mode type!");
+        return 1;
+    }
+
+    return (file_mode & mode) ? 'w' : '-';
+}
+char can_execute(mode_t file_mode, char mode_type)
+{
+    mode_t mode;
+
+    if (mode_type == 'U')
+    {
+        mode = S_IXUSR;
+    }
+    else if (mode_type == 'G')
+    {
+        mode = S_IXGRP;
+    }
+    else if (mode_type == 'O')
+    {
+        mode = S_IXOTH;
+    }
+    else
+    {
+        perror("Unknown mode type!");
+        return 1;
+    }
+    return (file_mode & mode) ? 'x' : '-';
+}
+
+char get_file_type(mode_t file_mode)
+{
+    switch (file_mode & S_IFMT)
+    {
+    case S_IFREG:
+        return '-';
+    case S_IFDIR:
+        return 'd';
+    case S_IFLNK:
+        return 'l';
+    case S_IFCHR:
+        return 'c';
+    case S_IFBLK:
+        return 'b';
+    case S_IFIFO:
+        return 'p';
+    case S_IFSOCK:
+        return 's';
+    case S_IFWHT:
+        return 'w'; 
+    default:
+        return 'u';
+    }
+}
+char *get_file_modes(mode_t file_mode, char mode_type)
+{
+    char *file_modes = (char *)malloc(4 * sizeof(char));
+    file_modes[0] = can_read(file_mode, mode_type);
+    file_modes[1] = can_write(file_mode, mode_type);
+    file_modes[2] = can_execute(file_mode, mode_type);
+    file_modes[3] = '\0';
+    return file_modes;
+}
+int print_long_format(char *filename){
+    struct stat file_stat;
+
+    if (stat(filename, &file_stat) < 0)
+    {
+        perror("Error");
+    }
+
+    mode_t file_mode = file_stat.st_mode;
+    char *user_mode = get_file_modes(file_mode, 'U');
+    char *group_mode = get_file_modes(file_mode, 'G');
+    char *other_mode = get_file_modes(file_mode, 'O');
+    char file_type = get_file_type(file_mode);
+    // number_of_links
+    // owner
+    // group
+    // file_size
+    // month_last_modified
+    // day_last_modified
+    // hour_minutes_last_modified
+
+    printf("%c%s%s%s %s \n", file_type, user_mode, group_mode, other_mode, filename);
+    return 1;
+}
 int get_files_count(char *dirname)
 {
 
@@ -88,25 +222,32 @@ int get_files_count(char *dirname)
 int process_files(int num_files, char **files){
     for (size_t i = 0; i < num_files; i++)
     {
-        printf("%s\t", files[i]);
+        if (LONG_FORMAT)
+        {
+            print_long_format(files[i]);
+        }
+        else
+        {
+            printf("%s\t", files[i]);
+        }
     }
     return 0;
 }
 
 
-char ** allocate_memory(int num_files){
-    char **files_memory = (char **)malloc(num_files * sizeof(char *));
-    for (int i = 0; i < num_files; i++)
+char ** allocate_memory(int count){
+    char **allocated_memory = (char **)malloc(count * sizeof(char *));
+    for (int i = 0; i < count; i++)
     {
-        files_memory[i] = (char *)malloc(20 * sizeof(char));
-        if (files_memory[i] == NULL)
+        allocated_memory[i] = (char *)malloc(1024 * sizeof(char));
+        if (allocated_memory[i] == NULL)
         {
             perror("Memory allocation failed");
             return NULL;
         }
     }
 
-    return files_memory;
+    return allocated_memory;
 }
 
 int queue_dir(char *filename)
@@ -172,6 +313,9 @@ void decodeFlags(int argc, char **argv)
         case 'a':
             SHOW_DOT_DIRECTORY = 1;
             break;
+        case 'l':
+            LONG_FORMAT = 1;
+            break;
         case 'c':
         case 'd':
         case 'F':
@@ -179,7 +323,6 @@ void decodeFlags(int argc, char **argv)
         case 'h':
         case 'i':
         case 'k':
-        case 'l':
         case 'n':
         case 'q':
         case 'R':
