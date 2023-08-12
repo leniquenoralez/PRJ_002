@@ -57,29 +57,20 @@ order.
 
 int SHOW_DOT_DIRECTORY = 0;
 int IGNORE_DOT_DOTDOT = 0;
-
-int 
-queue_dir(char *filename)
+int get_files_count(char *dirname)
 {
 
-    struct stat file_stat;
-    if (stat(filename, &file_stat) > 0)
+    DIR *dir = opendir(dirname);
+    if (dir == NULL)
     {
-        perror("Error");
+        perror("Error opening directory");
+        return 1;
     }
-    nlink_t num_links = file_stat.st_nlink;
-    int num_files = (unsigned long)num_links;
-    char files[num_files][1024];
 
-    DIR *currDir = opendir(filename);
-    if (currDir == NULL)
-    {
-        printf("Unable to open %s\n.", filename);
-        return -1;
-    }
+    int num_files = 0;
+
     struct dirent *entry;
-
-    for (size_t i = 0; i < num_files; i++)
+    while ((entry = readdir(dir)) != NULL)
     {
         if ((!SHOW_DOT_DIRECTORY && (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)) || (!SHOW_DOT_DIRECTORY && entry->d_name[0] == '.'))
         {
@@ -87,11 +78,78 @@ queue_dir(char *filename)
         }
         if (entry->d_type == DT_REG || entry->d_type == DT_DIR)
         {
-            strcpy(files[i], entry->d_name);
+            num_files++;
+        }
+    }
+
+    closedir(dir);
+    return num_files;
+}
+int process_files(int num_files, char **files){
+    for (size_t i = 0; i < num_files; i++)
+    {
+        printf("%s\t", files[i]);
+    }
+    return 0;
+}
+
+
+char ** allocate_memory(int num_files){
+    char **files_memory = (char **)malloc(num_files * sizeof(char *));
+    for (int i = 0; i < num_files; i++)
+    {
+        files_memory[i] = (char *)malloc(20 * sizeof(char));
+        if (files_memory[i] == NULL)
+        {
+            perror("Memory allocation failed");
+            return NULL;
+        }
+    }
+
+    return files_memory;
+}
+
+int queue_dir(char *filename)
+{
+
+    struct stat file_stat;
+    if (stat(filename, &file_stat) > 0)
+    {
+        perror("Error");
+    }
+    int num_files = get_files_count(filename);
+    char **files = allocate_memory(num_files);
+
+    DIR *dir = opendir(filename);
+    if (dir == NULL)
+    {
+        printf("Unable to open %s\n.", filename);
+        return -1;
+    }
+    struct dirent *entry;
+
+    nlink_t num_links = file_stat.st_nlink;
+    int files_in_dir = (unsigned long)num_links;
+    int processed_file = 0;
+    for (size_t i = 0; i < files_in_dir; i++)
+    {
+        entry = readdir(dir);
+        if ((!SHOW_DOT_DIRECTORY && (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)) || (!SHOW_DOT_DIRECTORY && entry->d_name[0] == '.'))
+        {
+            continue;
+        }
+        if (entry->d_type == DT_REG || entry->d_type == DT_DIR)
+        {
+
+            strcpy(files[processed_file], entry->d_name);
+            processed_file++;
         }
     }
     
-    (void)closedir(currDir);
+    (void)closedir(dir);
+
+    process_files(num_files, files);
+    free(files);
 
     return 0;
 }
