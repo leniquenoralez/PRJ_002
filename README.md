@@ -14,3 +14,13 @@
 
 ### EXIT STATUS
     The ls utility exits 0 on success, and >0 if an error occurs.
+
+### Install
+    make
+
+### Example usage: 
+    ./ls[ −AacdFfhiklnqRrSstuw] [file . . .]
+
+    ./ls file 
+
+    ./ls directory
