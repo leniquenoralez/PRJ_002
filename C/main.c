@@ -180,7 +180,7 @@ int print_long_format(char *filename){
     char *group_mode = get_file_modes(file_mode, 'G');
     char *other_mode = get_file_modes(file_mode, 'O');
     char file_type = get_file_type(file_mode);
-    // number_of_links
+    nlink_t num_links = file_stat.st_nlink;
     // owner
     // group
     // file_size
@@ -188,7 +188,7 @@ int print_long_format(char *filename){
     // day_last_modified
     // hour_minutes_last_modified
 
-    printf("%c%s%s%s %s \n", file_type, user_mode, group_mode, other_mode, filename);
+    printf("%c%s%s%s %d %s \n", file_type, user_mode, group_mode, other_mode, num_links, filename);
     return 1;
 }
 int get_files_count(char *dirname)
