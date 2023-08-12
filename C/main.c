@@ -506,8 +506,12 @@ void ls_reg_files(char **reg_files)
     for (size_t i = 0; i < FILES_COUNT[REG_FILE_TYPE_COUNT]; i++)
     {
         ls_reg_file(reg_files[i]);
+        
     }
-    printf("\n\n");
+    if (FILES_COUNT[REG_FILE_TYPE_COUNT] != 0)
+    {
+        printf("\n\n");
+    }
 }
 int lsFile(char *filename)
 {
@@ -678,12 +682,12 @@ int main(int argc, char **argv)
         char *filename = DIRECTORIES[i];
         CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
         sprintf(CURRENT_DIRECTORY, "%s", filename);
-        if (FILES_COUNT[DIR_FILE_TYPE_COUNT] > 1)
+        if (FILES_COUNT[DIR_FILE_TYPE_COUNT] > 1 || FILES_COUNT[REG_FILE_TYPE_COUNT] > 0)
         {
             printf("%s: \n", filename);
         }
         ls_dir(filename);
-        if (i != argc - 1)
+        if (i != FILES_COUNT[DIR_FILE_TYPE_COUNT] - 1)
         {
             printf("\n\n");
         }
