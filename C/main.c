@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
+#include <time.h>
 
 int IGNORE_DOT_AND_DOTDOT = 1;
 int IGNORE_DOT_DIR = 1;
@@ -193,15 +194,23 @@ char *get_owner(struct stat file_stat)
     struct passwd *user_info = getpwuid(user_id);
     struct group *group_info = getgrgid(group_id);
     char *user = (char *)malloc(1024 * sizeof(char));
-    strcpy(user, user_info->pw_name);
-    char *group = (char *)malloc(1024 * sizeof(char));
-    strcpy(group, group_info->gr_name);
-    strcat(user, " ");
-    strcat(user, group);
-    free(group);
+    sprintf(user, "%s %s", user_info->pw_name, group_info->gr_name);
     return user;
 }
 
+char *get_modified_date_time(struct tm *time_info)
+{
+    int day = time_info->tm_mday;
+    int hour = time_info->tm_hour;
+    int minute = time_info->tm_min;
+    char *month_abbrev = (char *)malloc(4 * sizeof(char));
+    char *formatted_time = (char *)malloc(13 * sizeof(char));
+
+    strftime(month_abbrev, sizeof(month_abbrev), "%b", time_info);
+
+    sprintf(formatted_time, "%s %2d %02d:%02d", month_abbrev, day,hour, minute);
+    return formatted_time;
+}
 int print_long_format(char *filename){
     struct stat file_stat;
 
@@ -213,17 +222,15 @@ int print_long_format(char *filename){
     char *file_mode = get_file_modes(file_stat.st_mode);
     nlink_t num_links = file_stat.st_nlink;
     char *owner = get_owner(file_stat);
+    off_t file_size = file_stat.st_size;
+    time_t mod_time = file_stat.st_mtime;
+    struct tm *time_info = localtime(&mod_time);
+    char *last_modified_date_time = get_modified_date_time(time_info);
 
-    // owner
-    // group
-    // file_size
-    // month_last_modified
-    // day_last_modified
-    // hour_minutes_last_modified
-
-    printf("%s %d %s %s\n", file_mode,num_links, owner, filename);
+    printf("%s %d %s %6lld %s %s\n", file_mode, num_links, owner, (long long)file_size, last_modified_date_time, filename);
     free(owner);
     free(file_mode);
+    free(last_modified_date_time);
     return 1;
 }
 int get_files_count(char *dirname)
