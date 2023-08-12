@@ -57,52 +57,29 @@ order.
 
 int SHOW_DOT_DIRECTORY = 0;
 int IGNORE_DOT_DOTDOT = 0;
-// TODO: create struct to store file and directory info
-int get_file_count(char *dirname)
+
+int 
+queue_dir(char *filename)
 {
 
-    DIR *dir = opendir(dirname);
-    if (dir == NULL)
+    struct stat file_stat;
+    if (stat(filename, &file_stat) > 0)
     {
-        perror("Error opening directory");
-        return 1;
+        perror("Error");
     }
-
-    int num_files = 0;
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL)
-    {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || (!SHOW_DOT_DIRECTORY && entry->d_name[0] == '.'))
-        {
-            continue;
-        }
-        if (entry->d_type == DT_REG || entry->d_type == DT_DIR)
-        {
-            num_files++;
-        }
-    }
-
-    closedir(dir);
-    return num_files;
-}
-
-int queue_dir(char *filename)
-{
-    int num_files = get_file_count(filename);
+    nlink_t num_links = file_stat.st_nlink;
+    int num_files = (unsigned long)num_links;
     char files[num_files][1024];
-    printf("num files in directory: %d\n", num_files);
 
     DIR *currDir = opendir(filename);
-    // struct dirent *dirp;
     if (currDir == NULL)
     {
         printf("Unable to open %s\n.", filename);
         return -1;
     }
     struct dirent *entry;
-    int count = 0;
-    while ((entry = readdir(currDir)) != NULL)
+
+    for (size_t i = 0; i < num_files; i++)
     {
         if ((!SHOW_DOT_DIRECTORY && (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)) || (!SHOW_DOT_DIRECTORY && entry->d_name[0] == '.'))
         {
@@ -110,10 +87,10 @@ int queue_dir(char *filename)
         }
         if (entry->d_type == DT_REG || entry->d_type == DT_DIR)
         {
-            strcpy(files[count], entry->d_name);
-            count++;
+            strcpy(files[i], entry->d_name);
         }
     }
+    
     (void)closedir(currDir);
 
     return 0;
