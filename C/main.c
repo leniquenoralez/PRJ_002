@@ -3,36 +3,22 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <dirent.h>
-int isFlagValid(char *flag)
+#include <unistd.h>
+
+int IGNORE_DOT_AND_DOTDOT = 1;
+int IGNORE_DOT_DIR = 1;
+int SORT_BY_STATUS_LAST_CHANGED = 1;
+
+static enum {
+    DEFAULT = 1,
+    TIME_STATUS_LAST_CHANGED,
+    TIME_LAST_MODIFIED,
+    TIME_LAST_ACCESS,
+    FILE_SIZE
+} SORT_MODE;
+
+int lsDir(char *filename)
 {
-    char flags[19] = "AacdFfhiklnqRrSstuw";
-
-    for (__SIZE_TYPE__ i = 0; i < 19; i++)
-    {
-        if (*flag == flags[i])
-        {
-            return 0;
-        }
-    }
-
-    return -1;
-}
-int allFlagsValid(char *flags)
-{
-    int flagsCount = strlen(flags);
-    for (size_t i = 1; i < flagsCount; i++)
-    {
-        if (isFlagValid(&flags[i]) < 0)
-        {
-            printf("%c is not a valid flag!!\n", flags[i]);
-            return -1;
-        }
-    }
-    return 0;
-}
-
-
-int lsDir(char *filename){
 
     DIR *currDir = opendir(filename);
     struct dirent *dirp;
@@ -41,9 +27,23 @@ int lsDir(char *filename){
         printf("Unable to open %s\n.", filename);
         return -1;
     }
+    int showDotFiles = hasFlag('a');
     while ((dirp = readdir(currDir)) != NULL)
     {
-        printf("%s\n", dirp->d_name);
+        struct stat currentFileStat;
+        if (lstat(filename, &currentFileStat))
+        {
+            fprintf(stderr, "failed getting file info");
+            return -1;
+        }
+        if (showDotFiles == -1 && dirp->d_name[0] == '.')
+        {
+            continue;
+        } else {
+            printf("%s\t", dirp->d_name);
+        }
+        
+        
     }
     (void)closedir(currDir);
 
@@ -56,58 +56,11 @@ int lsFile(char *filename){
 }
 
 int main(int argc, char **argv){
-    struct stat fileStat;
+    int c;
 
-
-    if (argc == 1)
+    while ((c = getopt(argc, argv, "AacdFfhiklnqRrSstuw")) != -1)
     {
-        printf("no args or filename provided. listing current directory.\n");
-        return lsDir(".");
-    }
-    char *firstArg = argv[1];
-
-    if (argc == 2 && firstArg[0] == '-' && allFlagsValid(firstArg) == 0)
-    {
-        char *flags = firstArg;
-        printf("Flags provided: %s\n", flags);
-        return lsDir(".");
- 
-    }
-
-    if (lstat(firstArg, &fileStat))
-    {
-        fprintf(stderr, "failed getting file info");
-        return -1;
-    }
-    if (argc == 2 && S_ISREG(fileStat.st_mode))
-    {
-        return lsFile(firstArg);
-
-    }
-    
-    if (argc == 2 && S_ISDIR(fileStat.st_mode))
-    {
-        return lsDir(firstArg);
-    }
-
-    char *flags = argv[1];
-    char *filename = argv[2];
-    if (allFlagsValid(flags) < 0)
-    {
-        return -1;
-    }
-    if (lstat(filename, &fileStat))
-    {
-        fprintf(stderr, "failed getting file info");
-        return -1;
-    }
-    if (S_ISREG(fileStat.st_mode))
-    {
-        return lsFile(filename);
-    }
-
-    if (S_ISDIR(fileStat.st_mode)){
-        return lsDir(filename);
+        printf("==> %c\n", c);
     }
     return -1;
 }
