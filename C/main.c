@@ -7,7 +7,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
-
+char *CURRENT_DIRECTORY = NULL;
 int IGNORE_DOT_AND_DOTDOT = 1;
 int IGNORE_DOT_DIR = 1;
 static enum SORT_MODES {
@@ -211,9 +211,21 @@ char *get_modified_date_time(struct tm *time_info)
 int print_long_format(char *filename){
     struct stat file_stat;
 
-    if (stat(filename, &file_stat) < 0)
+    char *filePath = (char *)malloc(1024 * sizeof(char));
+    if (CURRENT_DIRECTORY == NULL)
     {
-        perror("Error");
+        sprintf(filePath, "%s", filename);
+    } else {
+        sprintf(filePath, "%s/%s", CURRENT_DIRECTORY,filename);
+
+    }
+
+    if (stat(filePath, &file_stat) < 0)
+    {
+        char *error_message = (char *)malloc(1024 * sizeof(char));
+        sprintf(error_message, "Error %s:", filePath);
+        perror(error_message);
+        free(error_message);
     }
 
     char *file_mode = get_file_modes(file_stat.st_mode);
@@ -432,12 +444,26 @@ int main(int argc, char **argv){
     } 
     if (mode == 1)
     {
-        printf("ls [-la] filename");
+        char *filename = argv[optind];
+        CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
+        sprintf(CURRENT_DIRECTORY, "%s", filename);
+        queue_dir(filename);
+        free(CURRENT_DIRECTORY);
         return 1;
     }
     if (mode >= 2)
     {
-        printf("ls [-la] filename1 filename2 ...filename");
+        for (size_t i = optind; i < argc; i++)
+        {
+            char *filename = argv[i];
+            CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
+            sprintf(CURRENT_DIRECTORY, "%s", filename);
+            printf("%s\n:", filename);
+            queue_dir(filename);
+            printf("\n");
+            free(CURRENT_DIRECTORY);
+        }
+
         return 1;
     }
     return -1;
