@@ -25,14 +25,8 @@ int SORT_BY_STATUS_LAST_CHANGED = 1;
 */
 
 /*
-    Directory Flags
-    −A List all entries except for ‘.’ and ‘..’. Always set for the super-user.
-    −a Include directory entries whose names begin with a dot ( ‘.’ ) .
-*/
-/*
     Printing Flags
     −i For each file, print the file’s file serial number (inode number).
-    −l (The lowercase letter “ell”). List in long format. (See below.)
     −n The same as −l, except that the owner and group IDs are displayed numerically rather than converting to a owner or group name.
     −R Recursively list subdirectories encountered.
     −d Directories are listed as plain files (not searched recursively) and symbolic links in the argumentlist are not indirected through.
@@ -61,13 +55,6 @@ order.
 int SHOW_DOT_DIRECTORY = 0;
 int IGNORE_DOT_DOTDOT = 0;
 int LONG_FORMAT = 1;
-/*
-        printf("Owner: %c%c%c\n",
-               (file_mode & S_IRUSR) ? 'r' : '-',
-               (file_mode & S_IWUSR) ? 'w' : '-',
-               (file_mode & S_IXUSR) ? 'x' : '-');
-        // Similar checks for group and others
-*/
 char can_read(mode_t file_mode, char mode_type) {
     mode_t mode;
     if (mode_type == 'U')
