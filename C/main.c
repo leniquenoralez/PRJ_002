@@ -25,14 +25,14 @@ int SORT_BY_STATUS_LAST_CHANGED = 1;
     Directory Flags
     −A List all entries except for ‘.’ and ‘..’. Always set for the super-user.
     −a Include directory entries whose names begin with a dot ( ‘.’ ) .
-    −R Recursively list subdirectories encountered.
-    −d Directories are listed as plain files (not searched recursively) and symbolic links in the argumentlist are not indirected through.
 */
 /*
     Printing Flags
     −i For each file, print the file’s file serial number (inode number).
     −l (The lowercase letter “ell”). List in long format. (See below.)
     −n The same as −l, except that the owner and group IDs are displayed numerically rather than converting to a owner or group name.
+    −R Recursively list subdirectories encountered.
+    −d Directories are listed as plain files (not searched recursively) and symbolic links in the argumentlist are not indirected through.
 */
 /*
     Override Flags
@@ -54,41 +54,65 @@ Sorting Flags
 order.
 −u Use time of last access, instead of last modification of the file for sorting ( −t ) or printing ( −l ) .
 */
-static enum {
-    DEFAULT = 1,
-    TIME_STATUS_LAST_CHANGED,
-    TIME_LAST_MODIFIED,
-    TIME_LAST_ACCESS,
-    FILE_SIZE
-} SORT_MODE;
 
-int lsDir(char *filename)
+int SHOW_DOT_DIRECTORY = 0;
+int IGNORE_DOT_DOTDOT = 0;
+// TODO: create struct to store file and directory info
+int get_file_count(char *dirname)
 {
 
+    DIR *dir = opendir(dirname);
+    if (dir == NULL)
+    {
+        perror("Error opening directory");
+        return 1;
+    }
+
+    int num_files = 0;
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || (!SHOW_DOT_DIRECTORY && entry->d_name[0] == '.'))
+        {
+            continue;
+        }
+        if (entry->d_type == DT_REG || entry->d_type == DT_DIR)
+        {
+            num_files++;
+        }
+    }
+
+    closedir(dir);
+    return num_files;
+}
+
+int queue_dir(char *filename)
+{
+    int num_files = get_file_count(filename);
+    char files[num_files][1024];
+    printf("num files in directory: %d\n", num_files);
+
     DIR *currDir = opendir(filename);
-    struct dirent *dirp;
+    // struct dirent *dirp;
     if (currDir == NULL)
     {
         printf("Unable to open %s\n.", filename);
         return -1;
     }
-    int showDotFiles = hasFlag('a');
-    while ((dirp = readdir(currDir)) != NULL)
+    struct dirent *entry;
+    int count = 0;
+    while ((entry = readdir(currDir)) != NULL)
     {
-        struct stat currentFileStat;
-        if (lstat(filename, &currentFileStat))
-        {
-            fprintf(stderr, "failed getting file info");
-            return -1;
-        }
-        if (showDotFiles == -1 && dirp->d_name[0] == '.')
+        if ((!SHOW_DOT_DIRECTORY && (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)) || (!SHOW_DOT_DIRECTORY && entry->d_name[0] == '.'))
         {
             continue;
-        } else {
-            printf("%s\t", dirp->d_name);
         }
-        
-        
+        if (entry->d_type == DT_REG || entry->d_type == DT_DIR)
+        {
+            strcpy(files[count], entry->d_name);
+            count++;
+        }
     }
     (void)closedir(currDir);
 
@@ -99,13 +123,54 @@ int lsFile(char *filename){
     printf("listing details for file: %s\n", filename);
     return 0;
 }
-
-int main(int argc, char **argv){
+void decodeFlags(int argc, char **argv)
+{
     int c;
 
     while ((c = getopt(argc, argv, "AacdFfhiklnqRrSstuw")) != -1)
     {
-        printf("==> %c\n", c);
+        switch (c)
+        {
+        case 'A':
+            IGNORE_DOT_DOTDOT = 1;
+            break;
+        case 'a':
+            SHOW_DOT_DIRECTORY = 1;
+            break;
+        case 'c':
+        case 'd':
+        case 'F':
+        case 'f':
+        case 'h':
+        case 'i':
+        case 'k':
+        case 'l':
+        case 'n':
+        case 'q':
+        case 'R':
+        case 'r':
+        case 'S':
+        case 's':
+        case 't':
+        case 'u':
+        case 'w':
+        default:
+            printf("==> %c\n", c);
+            break;
+        }
     }
+}
+int main(int argc, char **argv){
+
+    decodeFlags(argc, argv);
+
+    // ls
+    if (argc == 1)
+    {
+        queue_dir(".");
+        return 1;
+    }
+    
+    
     return -1;
 }
