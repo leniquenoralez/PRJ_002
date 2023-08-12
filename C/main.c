@@ -8,10 +8,33 @@
 #include <grp.h>
 #include <time.h>
 char *CURRENT_DIRECTORY = NULL;
+
+char **REG_FILES = NULL;
+char **DIRECTORIES = NULL;
+char **SYMBOLIC_LINKS = NULL;
+char **CHARACTER_SPECIAL_FILES = NULL;
+char **BLOCK_SPECIAL_FILES = NULL;
+char **FIFO_FILES = NULL;
+char **SOCKETS = NULL;
+char **WHITEOUT_FILES = NULL;
+char **UNKNOWN_FILES = NULL;
+
 int IGNORE_DOT_AND_DOTDOT = 1;
 int IGNORE_DOT_DIR = 1;
 int REG_FILES_COUNT = 0;
 int DIRS_COUNT = 0;
+int FILES_COUNT[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+int REG_FILE_TYPE_COUNT = 0;
+int DIR_FILE_TYPE_COUNT = 1;
+int SYMBOLIC_LINK_FILE_TYPE_COUNT = 2;
+int CHARACTER_FILE_TYPE_COUNT = 3;
+int BLOCK_FILE_TYPE_COUNT = 4;
+int FIFO_FILE_TYPE_COUNT = 5;
+int SOCKET_FILE_TYPE_COUNT = 6;
+int WHITEOUT_FILE_TYPE_COUNT = 7;
+int UNKNOWN_FILES_TYPE_COUNT = 8;
+
 static enum SORT_MODES {
     ALPHABETICALLY = 0,
     LAST_MODIFIED,
@@ -20,16 +43,24 @@ static enum SORT_MODES {
     FILE_SIZE,
     REVERSE_SORT
 } SORT_MODE;
+
 static enum FORMAT_MODES {
     DEFAULT = 0,
     LONG,
     NUMERIC
 } FORMAT_MODE;
+
 enum FILE_TYPES
 {
     REGULAR_FILE = '-',
     DIRECTORY = 'd',
     SYMBOLIC_LINK = 'l',
+    CHARACTER_SPECIAL = 'c',
+    BLOCK_SPECIAL = 'b',
+    FIFO = 'p',
+    SOCKET = 's',
+    WHITEOUT = 'w',
+    UNKNOWN = 'u',
 };
 /*
     Display Flags
@@ -466,7 +497,7 @@ void ls_reg_file(char *filename){
     }
 }
 void ls_reg_files(char **reg_files){
-    for (size_t i = 0; i < REG_FILES_COUNT; i++)
+    for (size_t i = 0; i < FILES_COUNT[REG_FILE_TYPE_COUNT]; i++)
     {
         ls_reg_file(reg_files[i]);
     }
@@ -476,49 +507,98 @@ int lsFile(char *filename){
     printf("listing details for file: %s\n", filename);
     return 0;
 }
-
-char **get_files_by_type(char **files, char type, int files_count, char start_index){
-
-    
-
+void set_file_types_count(char **files, int files_count, char start_index)
+{
     for (size_t i = start_index; i <= files_count; i++)
     {
         enum FILE_TYPES file_type = get_file_type(files[i]);
-        if (file_type == REGULAR_FILE && type == REGULAR_FILE)
+        switch (file_type)
         {
-            REG_FILES_COUNT++;
+        case REGULAR_FILE:
+            FILES_COUNT[REG_FILE_TYPE_COUNT]++;
+            break;
+        case DIRECTORY:
+            FILES_COUNT[DIR_FILE_TYPE_COUNT]++;
+            break;
+        case SYMBOLIC_LINK:
+            FILES_COUNT[SYMBOLIC_LINK_FILE_TYPE_COUNT]++;
+            break;
+        case CHARACTER_SPECIAL:
+            FILES_COUNT[CHARACTER_FILE_TYPE_COUNT]++;
+            break;
+        case BLOCK_SPECIAL:
+            FILES_COUNT[BLOCK_FILE_TYPE_COUNT]++;
+            break;
+        case FIFO:
+            FILES_COUNT[FIFO_FILE_TYPE_COUNT]++;
+            break;
+        case SOCKET:
+            FILES_COUNT[SOCKET_FILE_TYPE_COUNT]++;
+            break;
+        case WHITEOUT:
+            FILES_COUNT[WHITEOUT_FILE_TYPE_COUNT]++;
+            break;
+        default:
+            FILES_COUNT[UNKNOWN_FILES_TYPE_COUNT]++;
+            break;
         }
-        if (file_type == DIRECTORY && type == DIRECTORY)
-        {
-            DIRS_COUNT++;
-        }
     }
-
-    char **files_by_type;
-    if (type == REGULAR_FILE)
+}
+void allocate_memory_for_file_types(){
+    if (FILES_COUNT[REG_FILE_TYPE_COUNT] > 0)
     {
-        files_by_type = allocate_memory(REG_FILES_COUNT);
+        REG_FILES = allocate_memory(FILES_COUNT[REG_FILE_TYPE_COUNT]);
     }
-    if (type == DIRECTORY)
+    if (FILES_COUNT[DIR_FILE_TYPE_COUNT] > 0)
     {
-        files_by_type = allocate_memory(DIRS_COUNT);
+        DIRECTORIES = allocate_memory(FILES_COUNT[DIR_FILE_TYPE_COUNT]);
     }
+    if (FILES_COUNT[SYMBOLIC_LINK_FILE_TYPE_COUNT] > 0)
+    {
+        SYMBOLIC_LINKS = allocate_memory(FILES_COUNT[SYMBOLIC_LINK_FILE_TYPE_COUNT]);
+    }
+    if (FILES_COUNT[CHARACTER_FILE_TYPE_COUNT] > 0)
+    {
+        CHARACTER_SPECIAL_FILES = allocate_memory(FILES_COUNT[CHARACTER_FILE_TYPE_COUNT]);
+    }
+    if (FILES_COUNT[BLOCK_FILE_TYPE_COUNT] > 0)
+    {
+        BLOCK_SPECIAL_FILES = allocate_memory(FILES_COUNT[BLOCK_FILE_TYPE_COUNT]);
+    }
+    if (FILES_COUNT[FIFO_FILE_TYPE_COUNT] > 0)
+    {
+        FIFO_FILES = allocate_memory(FILES_COUNT[FIFO_FILE_TYPE_COUNT]);
+    }
+    if (FILES_COUNT[SOCKET_FILE_TYPE_COUNT] > 0)
+    {
+        SOCKETS = allocate_memory(FILES_COUNT[SOCKET_FILE_TYPE_COUNT]);
+    }
+    if (FILES_COUNT[WHITEOUT_FILE_TYPE_COUNT] > 0)
+    {
+        WHITEOUT_FILES = allocate_memory(FILES_COUNT[WHITEOUT_FILE_TYPE_COUNT]);
+    }
+    if (FILES_COUNT[UNKNOWN_FILES_TYPE_COUNT] > 0)
+    {
+        UNKNOWN_FILES = allocate_memory(FILES_COUNT[UNKNOWN_FILES_TYPE_COUNT]);
+    }
+}
+void set_files_by_type(char **files, int files_count, char start_index){
 
-    int count = 0;
+    int REG_FILE_COUNT = 0;
+    int DIRECTORIES_COUNT = 0;
     for (size_t i = start_index; i <= files_count; i++)
     {
         char file_type = get_file_type(files[i]);
-        if (file_type == REGULAR_FILE && type == REGULAR_FILE)
+        if (file_type == REGULAR_FILE)
         {
-            files_by_type[count++] = strdup(files[i]);
+            REG_FILES[REG_FILE_COUNT++] = strdup(files[i]);
         }
-        if (file_type == DIRECTORY && type == DIRECTORY)
+        if (file_type == DIRECTORY)
         {
-            files_by_type[count++] = strdup(files[i]);
+            DIRECTORIES[DIRECTORIES_COUNT++] = strdup(files[i]);
         }
     }
 
-    return files_by_type;
 };
 
 int decodeFlags(int argc, char **argv)
@@ -586,20 +666,22 @@ int main(int argc, char **argv){
     }
     if (mode >= 2)
     {
-        char **reg_files = get_files_by_type(argv, REGULAR_FILE, mode, optind);
-        char **directories = get_files_by_type(argv, DIRECTORY, mode, optind);
+        set_file_types_count(argv, mode, optind);
+        allocate_memory_for_file_types();
+        set_files_by_type(argv, mode, optind);
 
-        sort_files(reg_files, REG_FILES_COUNT);
-        sort_dirs(directories, DIRS_COUNT);
+        sort_files(REG_FILES, FILES_COUNT[REG_FILE_TYPE_COUNT]);
+        sort_dirs(DIRECTORIES, FILES_COUNT[DIR_FILE_TYPE_COUNT]);
 
-        ls_reg_files(reg_files);
+        ls_reg_files(REG_FILES);
 
-        for (size_t i = 0; i < DIRS_COUNT; i++)
+        for (size_t i = 0; i < FILES_COUNT[DIR_FILE_TYPE_COUNT]; i++)
         {
-            char *filename = directories[i];
+            char *filename = DIRECTORIES[i];
             CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
             sprintf(CURRENT_DIRECTORY, "%s", filename);
-            if(DIRS_COUNT > 1){
+            if (FILES_COUNT[DIR_FILE_TYPE_COUNT] > 1)
+            {
                 printf("%s: \n", filename);
             }
             ls_dir(filename);
@@ -610,8 +692,8 @@ int main(int argc, char **argv){
             free(CURRENT_DIRECTORY);
             CURRENT_DIRECTORY = NULL;
         }
-        free_memory(reg_files, REG_FILES_COUNT);
-        free_memory(directories, DIRS_COUNT);
+        free_memory(REG_FILES, FILES_COUNT[REG_FILE_TYPE_COUNT]);
+        free_memory(DIRECTORIES, FILES_COUNT[DIR_FILE_TYPE_COUNT]);
 
         return 1;
     }
