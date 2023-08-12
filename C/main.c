@@ -194,7 +194,18 @@ char *get_owner(struct stat file_stat)
     sprintf(user, "%s %s", user_info->pw_name, group_info->gr_name);
     return user;
 }
-
+char *get_full_file_path(char *filename){
+    char *filePath = (char *)malloc(1024 * sizeof(char));
+    if (CURRENT_DIRECTORY == NULL)
+    {
+        sprintf(filePath, "%s", filename);
+    }
+    else
+    {
+        sprintf(filePath, "%s/%s", CURRENT_DIRECTORY, filename);
+    }
+    return filePath;
+}
 char *get_modified_date_time(struct tm *time_info)
 {
     int day = time_info->tm_mday;
@@ -211,14 +222,7 @@ char *get_modified_date_time(struct tm *time_info)
 int print_long_format(char *filename){
     struct stat file_stat;
 
-    char *filePath = (char *)malloc(1024 * sizeof(char));
-    if (CURRENT_DIRECTORY == NULL)
-    {
-        sprintf(filePath, "%s", filename);
-    } else {
-        sprintf(filePath, "%s/%s", CURRENT_DIRECTORY,filename);
-
-    }
+    char *filePath = get_full_file_path(filename);
 
     if (stat(filePath, &file_stat) < 0)
     {
@@ -236,10 +240,11 @@ int print_long_format(char *filename){
     struct tm *time_info = localtime(&mod_time);
     char *last_modified_date_time = get_modified_date_time(time_info);
 
-    printf("%s %d %s %6lld %s %s\n", file_mode, num_links, owner, (long long)file_size, last_modified_date_time, filename);
+    printf("%s %2d %s %6lld %s %s\n", file_mode, num_links, owner, (long long)file_size, last_modified_date_time, filename);
     free(owner);
     free(file_mode);
     free(last_modified_date_time);
+    free(filePath);
     return 1;
 }
 int get_files_count(char *dirname)
@@ -293,17 +298,21 @@ int last_modified_compare(const void *a, const void *b)
     struct stat file_a_stat;
     struct stat file_b_stat;
 
+    char *file_a_Path = get_full_file_path(file_a);
+    char *file_b_Path = get_full_file_path(file_b);
 
-    if (stat(file_a, &file_a_stat) > 0)
+    if (stat(file_a_Path, &file_a_stat) > 0)
     {
         perror("Error");
     }
-    if (stat(file_b, &file_b_stat) > 0)
+    if (stat(file_b_Path, &file_b_stat) > 0)
     {
         perror("Error");
     }
     time_t mod_time1 = file_a_stat.st_mtime;
     time_t mod_time2 = file_b_stat.st_mtime;
+    free(file_a_Path);
+    free(file_b_Path);
 
     if (mod_time1 > mod_time2)
     {
@@ -458,7 +467,7 @@ int main(int argc, char **argv){
             char *filename = argv[i];
             CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
             sprintf(CURRENT_DIRECTORY, "%s", filename);
-            printf("%s\n:", filename);
+            printf("%s: \n", filename);
             queue_dir(filename);
             printf("\n");
             free(CURRENT_DIRECTORY);
