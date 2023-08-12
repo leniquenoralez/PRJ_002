@@ -11,7 +11,8 @@ char *CURRENT_DIRECTORY = NULL;
 int IGNORE_DOT_AND_DOTDOT = 1;
 int IGNORE_DOT_DIR = 1;
 static enum SORT_MODES {
-    LAST_MODIFIED = 0,
+    ALPHABETICALLY = 0,
+    LAST_MODIFIED,
     STATUS_CHANGED,
     LAST_ACCESSED,
     FILE_SIZE,
@@ -327,6 +328,10 @@ int last_modified_compare(const void *a, const void *b)
         return 0;
     }
 }
+int strings_compare(const void *a, const void *b)
+{
+    return strcmp(*(const char **)a, *(const char **)b);
+}
 char ** allocate_memory(int count){
     char **allocated_memory = (char **)malloc(count * sizeof(char *));
     for (int i = 0; i < count; i++)
@@ -347,6 +352,11 @@ void sort_files(char **files, int num_files)
     {
         qsort(files, num_files, sizeof(files[0]), last_modified_compare);
     }
+    if (SORT_MODE == ALPHABETICALLY)
+    {
+        qsort(files, num_files, sizeof(files[0]), strings_compare);
+    }
+    
 }
 int queue_dir(char *filename)
 {
@@ -442,7 +452,7 @@ int decodeFlags(int argc, char **argv)
 
 int main(int argc, char **argv){
 
-    SORT_MODE = LAST_MODIFIED;
+    SORT_MODE = ALPHABETICALLY;
     decodeFlags(argc, argv);
     int mode = argc - optind;
 
