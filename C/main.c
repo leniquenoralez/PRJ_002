@@ -10,7 +10,14 @@
 
 int IGNORE_DOT_AND_DOTDOT = 1;
 int IGNORE_DOT_DIR = 1;
-int SORT_BY_STATUS_LAST_CHANGED = 1;
+static enum SORT_MODES {
+    LAST_MODIFIED = 0,
+    STATUS_CHANGED,
+    LAST_ACCESSED,
+    FILE_SIZE,
+    REVERSE_SORT
+} SORT_MODE;
+
 /*
     Display Flags
     −s Display the number of file system blocks actually used by each file, in units of 512 bytes or BLOCKSIZE (see ENVIRONMENT) where partial units are rounded up to the next integer value. If the output is to a terminal, a total sum for all the file sizes is output on a line before the listing.
@@ -263,7 +270,39 @@ int process_files(int num_files, char **files){
     return 0;
 }
 
+int last_modified_compare(const void *a, const void *b)
+{
+    char *file_a = *(char **)a;
+    char *file_b = *(char **)b;
 
+    struct stat file_a_stat;
+    struct stat file_b_stat;
+
+
+    if (stat(file_a, &file_a_stat) > 0)
+    {
+        perror("Error");
+    }
+    if (stat(file_b, &file_b_stat) > 0)
+    {
+        perror("Error");
+    }
+    time_t mod_time1 = file_a_stat.st_mtime;
+    time_t mod_time2 = file_b_stat.st_mtime;
+
+    if (mod_time1 > mod_time2)
+    {
+        return 1;
+    }
+    else if (mod_time2 > mod_time1)
+    {
+        return -1;
+    }
+    else
+    {
+        return 0;
+    }
+}
 char ** allocate_memory(int count){
     char **allocated_memory = (char **)malloc(count * sizeof(char *));
     for (int i = 0; i < count; i++)
@@ -278,7 +317,13 @@ char ** allocate_memory(int count){
 
     return allocated_memory;
 }
-
+void sort_files(char **files, int num_files)
+{
+    if (SORT_MODE == LAST_MODIFIED)
+    {
+        qsort(files, num_files, sizeof(files[0]), last_modified_compare);
+    }
+}
 int queue_dir(char *filename)
 {
 
@@ -317,7 +362,7 @@ int queue_dir(char *filename)
     }
     
     (void)closedir(dir);
-
+    sort_files(files, num_files);
     process_files(num_files, files);
     free(files);
 
@@ -369,6 +414,7 @@ void decodeFlags(int argc, char **argv)
 }
 int main(int argc, char **argv){
 
+    SORT_MODE = LAST_MODIFIED;
     decodeFlags(argc, argv);
 
     // ls
