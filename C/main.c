@@ -10,6 +10,8 @@
 char *CURRENT_DIRECTORY = NULL;
 int IGNORE_DOT_AND_DOTDOT = 1;
 int IGNORE_DOT_DIR = 1;
+int REG_FILES_COUNT = 0;
+int DIRS_COUNT = 0;
 static enum SORT_MODES {
     ALPHABETICALLY = 0,
     LAST_MODIFIED,
@@ -23,6 +25,12 @@ static enum FORMAT_MODES {
     LONG,
     NUMERIC
 } FORMAT_MODE;
+enum FILE_TYPES
+{
+    REGULAR_FILE = '-',
+    DIRECTORY = 'd',
+    SYMBOLIC_LINK = 'l',
+};
 /*
     Display Flags
     −s Display the number of file system blocks actually used by each file, in units of 512 bytes or BLOCKSIZE (see ENVIRONMENT) where partial units are rounded up to the next integer value. If the output is to a terminal, a total sum for all the file sizes is output on a line before the listing.
@@ -134,9 +142,35 @@ char can_execute(mode_t file_mode, char mode_type)
     }
     return (file_mode & mode) ? 'x' : '-';
 }
-
-char get_file_type(mode_t file_mode)
+char *get_full_file_path(char *filename)
 {
+    char *filePath = (char *)malloc(1024 * sizeof(char));
+    if (CURRENT_DIRECTORY == NULL)
+    {
+        sprintf(filePath, "%s", filename);
+    }
+    else
+    {
+        sprintf(filePath, "%s/%s", CURRENT_DIRECTORY, filename);
+    }
+    return filePath;
+}
+char get_file_type(char *filename)
+{
+    struct stat file_stat;
+
+    char *filePath = get_full_file_path(filename);
+
+    if (stat(filePath, &file_stat) < 0)
+    {
+        char *error_message = (char *)malloc(1024 * sizeof(char));
+        sprintf(error_message, "Error %s:", filePath);
+        perror(error_message);
+        free(error_message);
+    }
+    mode_t file_mode = file_stat.st_mode;
+    free(filePath);
+
     switch (file_mode & S_IFMT)
     {
     case S_IFREG:
@@ -160,15 +194,28 @@ char get_file_type(mode_t file_mode)
     }
 }
 
-char *get_file_modes(mode_t file_mode)
+char *get_file_modes(char *filename)
 {
+    struct stat file_stat;
+
+    char *filePath = get_full_file_path(filename);
+
+    if (stat(filePath, &file_stat) < 0)
+    {
+        char *error_message = (char *)malloc(1024 * sizeof(char));
+        sprintf(error_message, "Error %s:", filePath);
+        perror(error_message);
+        free(error_message);
+    }
     char *file_modes = (char *)malloc(11 * sizeof(char));
 
     char user_mode = 'U';
     char group_mode = 'G';
     char other_mode = 'O';
+    mode_t file_mode = file_stat.st_mode;
+    free(filePath);
 
-    file_modes[0] = get_file_type(file_mode);
+    file_modes[0] = get_file_type(filename);
 
     file_modes[1] = can_read(file_mode, user_mode);
     file_modes[2] = can_write(file_mode, user_mode);
@@ -195,18 +242,7 @@ char *get_owner(struct stat file_stat)
     sprintf(user, "%s %s", user_info->pw_name, group_info->gr_name);
     return user;
 }
-char *get_full_file_path(char *filename){
-    char *filePath = (char *)malloc(1024 * sizeof(char));
-    if (CURRENT_DIRECTORY == NULL)
-    {
-        sprintf(filePath, "%s", filename);
-    }
-    else
-    {
-        sprintf(filePath, "%s/%s", CURRENT_DIRECTORY, filename);
-    }
-    return filePath;
-}
+
 char *get_modified_date_time(struct tm *time_info)
 {
     int day = time_info->tm_mday;
@@ -233,7 +269,7 @@ int print_long_format(char *filename){
         free(error_message);
     }
 
-    char *file_mode = get_file_modes(file_stat.st_mode);
+    char *file_mode = get_file_modes(filename);
     nlink_t num_links = file_stat.st_nlink;
     char *owner = get_owner(file_stat);
     off_t file_size = file_stat.st_size;
@@ -254,7 +290,10 @@ int get_files_count(char *dirname)
     DIR *dir = opendir(dirname);
     if (dir == NULL)
     {
-        perror("Error opening directory");
+        char *error_message = (char *)malloc(1024 * sizeof(char));
+        sprintf(error_message, "Error opening directory: %s", dirname);
+        perror(error_message);
+        free(error_message);
         return 1;
     }
 
@@ -346,6 +385,15 @@ char ** allocate_memory(int count){
 
     return allocated_memory;
 }
+
+void free_memory(char **array, int size){
+    for (int i = 0; i < size; i++)
+    {
+        free(array[i]); 
+    }
+
+    free(array);
+}
 void sort_files(char **files, int num_files)
 {
     if (SORT_MODE == LAST_MODIFIED)
@@ -358,7 +406,11 @@ void sort_files(char **files, int num_files)
     }
     
 }
-int queue_dir(char *filename)
+void sort_dirs(char **files, int num_files)
+{
+    qsort(files, num_files, sizeof(files[0]), strings_compare);
+}
+int ls_dir(char *filename)
 {
 
     struct stat file_stat;
@@ -398,15 +450,77 @@ int queue_dir(char *filename)
     (void)closedir(dir);
     sort_files(files, num_files);
     process_files(num_files, files);
-    free(files);
+    free_memory(files, num_files);
 
     return 0;
 }
-
+void ls_reg_file(char *filename){
+    switch (FORMAT_MODE)
+    {
+    case LONG:
+        print_long_format(filename);
+        break;
+    default:
+        printf("%s\t", filename);
+        break;
+    }
+}
+void ls_reg_files(char **reg_files){
+    for (size_t i = 0; i < REG_FILES_COUNT; i++)
+    {
+        ls_reg_file(reg_files[i]);
+    }
+    printf("\n\n");
+}
 int lsFile(char *filename){
     printf("listing details for file: %s\n", filename);
     return 0;
 }
+
+char **get_files_by_type(char **files, char type, int files_count, char start_index){
+
+    
+
+    for (size_t i = start_index; i <= files_count; i++)
+    {
+        enum FILE_TYPES file_type = get_file_type(files[i]);
+        if (file_type == REGULAR_FILE && type == REGULAR_FILE)
+        {
+            REG_FILES_COUNT++;
+        }
+        if (file_type == DIRECTORY && type == DIRECTORY)
+        {
+            DIRS_COUNT++;
+        }
+    }
+
+    char **files_by_type;
+    if (type == REGULAR_FILE)
+    {
+        files_by_type = allocate_memory(REG_FILES_COUNT);
+    }
+    if (type == DIRECTORY)
+    {
+        files_by_type = allocate_memory(DIRS_COUNT);
+    }
+
+    int count = 0;
+    for (size_t i = start_index; i <= files_count; i++)
+    {
+        char file_type = get_file_type(files[i]);
+        if (file_type == REGULAR_FILE && type == REGULAR_FILE)
+        {
+            files_by_type[count++] = strdup(files[i]);
+        }
+        if (file_type == DIRECTORY && type == DIRECTORY)
+        {
+            files_by_type[count++] = strdup(files[i]);
+        }
+    }
+
+    return files_by_type;
+};
+
 int decodeFlags(int argc, char **argv)
 {
     int c;
@@ -458,7 +572,7 @@ int main(int argc, char **argv){
 
     if (mode == 0)
     {
-        queue_dir(".");
+        ls_dir(".");
         return 1;
     } 
     if (mode == 1)
@@ -466,25 +580,38 @@ int main(int argc, char **argv){
         char *filename = argv[optind];
         CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
         sprintf(CURRENT_DIRECTORY, "%s", filename);
-        queue_dir(filename);
+        ls_dir(filename);
         free(CURRENT_DIRECTORY);
         return 1;
     }
     if (mode >= 2)
     {
-        for (size_t i = optind; i < argc; i++)
+        char **reg_files = get_files_by_type(argv, REGULAR_FILE, mode, optind);
+        char **directories = get_files_by_type(argv, DIRECTORY, mode, optind);
+
+        sort_files(reg_files, REG_FILES_COUNT);
+        sort_dirs(directories, DIRS_COUNT);
+
+        ls_reg_files(reg_files);
+
+        for (size_t i = 0; i < DIRS_COUNT; i++)
         {
-            char *filename = argv[i];
+            char *filename = directories[i];
             CURRENT_DIRECTORY = (char *)malloc(1024 * sizeof(char));
             sprintf(CURRENT_DIRECTORY, "%s", filename);
-            printf("%s: \n", filename);
-            queue_dir(filename);
+            if(DIRS_COUNT > 1){
+                printf("%s: \n", filename);
+            }
+            ls_dir(filename);
             if (i != argc - 1)
             {
                 printf("\n\n");
             }
             free(CURRENT_DIRECTORY);
+            CURRENT_DIRECTORY = NULL;
         }
+        free_memory(reg_files, REG_FILES_COUNT);
+        free_memory(directories, DIRS_COUNT);
 
         return 1;
     }
