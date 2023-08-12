@@ -4,6 +4,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <pwd.h>
+#include <grp.h>
 
 int IGNORE_DOT_AND_DOTDOT = 1;
 int IGNORE_DOT_DIR = 1;
@@ -158,15 +160,48 @@ char get_file_type(mode_t file_mode)
         return 'u';
     }
 }
-char *get_file_modes(mode_t file_mode, char mode_type)
+
+char *get_file_modes(mode_t file_mode)
 {
-    char *file_modes = (char *)malloc(4 * sizeof(char));
-    file_modes[0] = can_read(file_mode, mode_type);
-    file_modes[1] = can_write(file_mode, mode_type);
-    file_modes[2] = can_execute(file_mode, mode_type);
-    file_modes[3] = '\0';
+    char *file_modes = (char *)malloc(11 * sizeof(char));
+
+    char user_mode = 'U';
+    char group_mode = 'G';
+    char other_mode = 'O';
+
+    file_modes[0] = get_file_type(file_mode);
+
+    file_modes[1] = can_read(file_mode, user_mode);
+    file_modes[2] = can_write(file_mode, user_mode);
+    file_modes[3] = can_execute(file_mode, user_mode);
+
+    file_modes[4] = can_read(file_mode, group_mode);
+    file_modes[5] = can_write(file_mode, group_mode);
+    file_modes[6] = can_execute(file_mode, group_mode);
+
+    file_modes[7] = can_read(file_mode, other_mode);
+    file_modes[8] = can_write(file_mode, other_mode);
+    file_modes[9] = can_execute(file_mode, other_mode);
+    file_modes[10] = '\0';
     return file_modes;
 }
+char *get_owner(struct stat file_stat)
+{
+    uid_t user_id = file_stat.st_uid;
+    gid_t group_id = file_stat.st_gid;
+
+    struct passwd *user_info = getpwuid(user_id);
+    struct group *group_info = getgrgid(group_id);
+    char *user = (char *)malloc(1024 * sizeof(char));
+    strcpy(user, user_info->pw_name);
+    char *group = (char *)malloc(1024 * sizeof(char));
+    strcpy(group, group_info->gr_name);
+    strcat(user, " ");
+    strcat(user, group);
+    free(group);
+    return user;
+}
+
 int print_long_format(char *filename){
     struct stat file_stat;
 
@@ -175,12 +210,10 @@ int print_long_format(char *filename){
         perror("Error");
     }
 
-    mode_t file_mode = file_stat.st_mode;
-    char *user_mode = get_file_modes(file_mode, 'U');
-    char *group_mode = get_file_modes(file_mode, 'G');
-    char *other_mode = get_file_modes(file_mode, 'O');
-    char file_type = get_file_type(file_mode);
+    char *file_mode = get_file_modes(file_stat.st_mode);
     nlink_t num_links = file_stat.st_nlink;
+    char *owner = get_owner(file_stat);
+
     // owner
     // group
     // file_size
@@ -188,7 +221,9 @@ int print_long_format(char *filename){
     // day_last_modified
     // hour_minutes_last_modified
 
-    printf("%c%s%s%s %d %s \n", file_type, user_mode, group_mode, other_mode, num_links, filename);
+    printf("%s %d %s %s\n", file_mode,num_links, owner, filename);
+    free(owner);
+    free(file_mode);
     return 1;
 }
 int get_files_count(char *dirname)
